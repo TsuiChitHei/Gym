@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AddBrandModal } from './AddBrandModal';
@@ -22,10 +22,10 @@ export interface ExerciseSelection {
 interface ExerciseSelectFormProps {
   exerciseNumber: number;
   onStart: (selection: ExerciseSelection) => void;
-  onEnd: () => void;
+  onCancel: () => void;
 }
 
-export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseSelectFormProps) {
+export function ExerciseSelectForm({ exerciseNumber, onStart, onCancel }: ExerciseSelectFormProps) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -35,6 +35,8 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [showMachineModal, setShowMachineModal] = useState(false);
   const [showBrandPicker, setShowBrandPicker] = useState(false);
+  const [showMachinePicker, setShowMachinePicker] = useState(false);
+  const [machineSearch, setMachineSearch] = useState('');
 
   const loadBrands = async () => {
     const data = await getAllBrands();
@@ -51,21 +53,23 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
     setSelectedMachine(null);
     setModes([]);
     setSelectedModeId(null);
+    setMachineSearch('');
+    setShowMachinePicker(false);
   };
 
   useEffect(() => {
-    loadBrands();
+    void loadBrands();
   }, []);
 
   useEffect(() => {
     if (selectedBrandId) {
-      loadMachines(selectedBrandId);
+      void loadMachines(selectedBrandId);
     }
   }, [selectedBrandId]);
 
   useEffect(() => {
     if (selectedMachine?.is_multipurpose) {
-      getMachineModes(selectedMachine.id).then(setModes);
+      void getMachineModes(selectedMachine.id).then(setModes);
     } else {
       setModes([]);
       setSelectedModeId(null);
@@ -73,6 +77,14 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
   }, [selectedMachine]);
 
   const selectedBrand = brands.find((b) => b.id === selectedBrandId);
+
+  const filteredMachines = useMemo(() => {
+    const q = machineSearch.trim().toLowerCase();
+    if (!q) return machines;
+    return machines.filter((machine) => machine.machine_name.toLowerCase().includes(q));
+  }, [machines, machineSearch]);
+
+  const machineSummary = selectedMachine?.machine_name ?? 'Select machine';
 
   const handleStart = () => {
     if (!selectedMachine || !selectedBrand) return;
@@ -98,7 +110,11 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
       <Text style={styles.label}>Brand</Text>
       <Pressable style={styles.select} onPress={() => setShowBrandPicker((v) => !v)}>
         <Text style={styles.selectText}>{selectedBrand?.name ?? 'Select brand'}</Text>
-        <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+        <Ionicons
+          name={showBrandPicker ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={colors.textSecondary}
+        />
       </Pressable>
 
       {showBrandPicker ? (
@@ -128,20 +144,63 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
       ) : null}
 
       <Text style={styles.label}>Machine</Text>
-      {machines.length === 0 ? (
-        <Text style={styles.empty}>No machines for this brand yet.</Text>
-      ) : (
-        machines.map((machine) => (
-          <Pressable
-            key={machine.id}
-            style={[styles.machineRow, selectedMachine?.id === machine.id && styles.machineSelected]}
-            onPress={() => setSelectedMachine(machine)}
-          >
-            <MachineImage imageFilename={machine.image_filename} />
-            <Text style={styles.machineName}>{machine.machine_name}</Text>
-          </Pressable>
-        ))
-      )}
+      <Pressable
+        style={styles.select}
+        onPress={() => {
+          if (machines.length === 0) return;
+          setShowMachinePicker((v) => !v);
+        }}
+      >
+        <Text style={[styles.selectText, !selectedMachine && styles.placeholder]}>
+          {machines.length === 0 ? 'No machines for this brand yet' : machineSummary}
+        </Text>
+        <Ionicons
+          name={showMachinePicker ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={colors.textSecondary}
+        />
+      </Pressable>
+
+      {showMachinePicker ? (
+        <View style={styles.pickerList}>
+          <AppTextInput
+            label="Search"
+            value={machineSearch}
+            onChangeText={setMachineSearch}
+            placeholder="Type machine name"
+            style={styles.searchInput}
+          />
+          <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
+            {filteredMachines.length === 0 ? (
+              <Text style={styles.emptyPicker}>No matching machines</Text>
+            ) : (
+              filteredMachines.map((machine) => (
+                <Pressable
+                  key={machine.id}
+                  style={[
+                    styles.machinePickerItem,
+                    selectedMachine?.id === machine.id && styles.machineSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedMachine(machine);
+                    setShowMachinePicker(false);
+                    setMachineSearch('');
+                  }}
+                >
+                  <MachineImage imageFilename={machine.image_filename} />
+                  <Text style={styles.machineName}>{machine.machine_name}</Text>
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
+          <Button
+            title="Done"
+            variant="secondary"
+            onPress={() => setShowMachinePicker(false)}
+            style={styles.doneBtn}
+          />
+        </View>
+      ) : null}
 
       <Button
         title="Add New Machine"
@@ -168,14 +227,14 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
 
       <View style={styles.actions}>
         <Button title="Start" onPress={handleStart} disabled={!canStart} style={styles.actionBtn} />
-        <Button title="End" variant="danger" onPress={onEnd} style={styles.actionBtn} />
+        <Button title="Cancel" variant="secondary" onPress={onCancel} style={styles.actionBtn} />
       </View>
 
       <AddBrandModal
         visible={showBrandModal}
         onClose={() => setShowBrandModal(false)}
         onCreated={(brandId) => {
-          loadBrands().then(() => setSelectedBrandId(brandId));
+          void loadBrands().then(() => setSelectedBrandId(brandId));
         }}
       />
 
@@ -184,7 +243,7 @@ export function ExerciseSelectForm({ exerciseNumber, onStart, onEnd }: ExerciseS
           visible={showMachineModal}
           brandId={selectedBrandId}
           onClose={() => setShowMachineModal(false)}
-          onSaved={() => loadMachines(selectedBrandId)}
+          onSaved={() => void loadMachines(selectedBrandId)}
         />
       ) : null}
     </ScrollView>
@@ -218,7 +277,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  selectText: { color: colors.text, fontSize: 16 },
+  selectText: { color: colors.text, fontSize: 16, flex: 1, marginRight: spacing.sm },
+  placeholder: { color: colors.textMuted },
   pickerList: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
@@ -234,17 +294,25 @@ const styles = StyleSheet.create({
   },
   pickerItemText: { color: colors.text, fontSize: 16 },
   addNew: { color: colors.primary, fontWeight: '600' },
-  empty: { color: colors.textMuted, marginBottom: spacing.md },
-  machineRow: {
+  searchInput: {
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  pickerScroll: {
+    maxHeight: 220,
+  },
+  emptyPicker: {
+    color: colors.textMuted,
+    textAlign: 'center',
+    padding: spacing.lg,
+  },
+  machinePickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   machineSelected: {
     borderColor: colors.primary,
@@ -260,6 +328,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   addMachineBtn: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  doneBtn: {
+    margin: spacing.sm,
+  },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   actionBtn: { flex: 1 },
 });

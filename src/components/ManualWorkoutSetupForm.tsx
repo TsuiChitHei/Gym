@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppTextInput } from './AppTextInput';
 import { Button } from './Button';
+import { DatePickerField } from './DatePickerField';
 import { colors, spacing } from '../constants/theme';
 
 interface ManualWorkoutSetupFormProps {
@@ -17,19 +18,13 @@ interface ManualWorkoutSetupFormProps {
 export function ManualWorkoutSetupForm({ onStart, onCancel }: ManualWorkoutSetupFormProps) {
   const [workoutName, setWorkoutName] = useState('');
   const [location, setLocation] = useState('');
-  const [dateText, setDateText] = useState(new Date().toISOString().slice(0, 16).replace('T', ' '));
+  const [workoutDate, setWorkoutDate] = useState(() => new Date());
   const [durationMinutes, setDurationMinutes] = useState('60');
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = () => {
     if (!workoutName.trim() || !location.trim()) {
       setError('Please fill in session name and location.');
-      return;
-    }
-
-    const parsedDate = new Date(dateText.replace(' ', 'T'));
-    if (Number.isNaN(parsedDate.getTime())) {
-      setError('Invalid date. Use format: YYYY-MM-DD HH:mm');
       return;
     }
 
@@ -42,7 +37,7 @@ export function ManualWorkoutSetupForm({ onStart, onCancel }: ManualWorkoutSetup
     onStart({
       workoutName: workoutName.trim(),
       location: location.trim(),
-      date: parsedDate,
+      date: workoutDate,
       durationSeconds: duration * 60,
     });
   };
@@ -62,11 +57,12 @@ export function ManualWorkoutSetupForm({ onStart, onCancel }: ManualWorkoutSetup
         onChangeText={setLocation}
         placeholder="e.g. Campus Gym"
       />
-      <AppTextInput
-        label="Date & time (YYYY-MM-DD HH:mm)"
-        value={dateText}
-        onChangeText={setDateText}
-        placeholder="2026-07-09 18:30"
+      <DatePickerField
+        label="Date & time"
+        value={workoutDate}
+        onChange={setWorkoutDate}
+        mode="datetime"
+        maximumDate={new Date()}
       />
       <AppTextInput
         label="Duration (minutes)"

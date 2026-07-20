@@ -1,210 +1,58 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AddBrandModal } from '../../components/AddBrandModal';
-import { AddMachineModal } from '../../components/AddMachineModal';
-import { AppModal } from '../../components/AppModal';
-import { AppTextInput } from '../../components/AppTextInput';
-import { Button } from '../../components/Button';
-import { MachineImage } from '../../components/MachineImage';
 import { colors, spacing } from '../../constants/theme';
-import { deleteBrand, getAllBrands, updateBrand } from '../../db/repositories/brands';
-import { deleteMachine, getMachinesByBrand } from '../../db/repositories/machines';
-import type { Brand, Machine } from '../../types';
+import type { SettingsStackParamList } from '../../navigation/SettingsNavigator';
+
+type Nav = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
+
+const MENU_ITEMS: {
+  key: 'Profile' | 'BrandsMachines';
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    key: 'Profile',
+    title: 'Profile',
+    subtitle: 'Birth date, sex, body weight, strength compare',
+    icon: 'person-outline',
+  },
+  {
+    key: 'BrandsMachines',
+    title: 'Brands & Machines',
+    subtitle: 'Manage gym brands and machine catalog',
+    icon: 'barbell-outline',
+  },
+];
 
 export function SettingsScreen() {
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
-  const [machines, setMachines] = useState<Machine[]>([]);
-  const [showAddBrand, setShowAddBrand] = useState(false);
-  const [showAddMachine, setShowAddMachine] = useState(false);
-  const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [editBrandName, setEditBrandName] = useState('');
-
-  const loadBrands = useCallback(async () => {
-    const data = await getAllBrands();
-    setBrands(data);
-    if (selectedBrandId && !data.find((b) => b.id === selectedBrandId)) {
-      setSelectedBrandId(null);
-      setMachines([]);
-    }
-  }, [selectedBrandId]);
-
-  const loadMachines = useCallback(async (brandId: number) => {
-    const data = await getMachinesByBrand(brandId);
-    setMachines(data);
-  }, []);
-
-  useEffect(() => {
-    loadBrands();
-  }, [loadBrands]);
-
-  useEffect(() => {
-    if (selectedBrandId) {
-      loadMachines(selectedBrandId);
-    }
-  }, [selectedBrandId, loadMachines]);
-
-  const handleDeleteBrand = (brand: Brand) => {
-    Alert.alert('Delete Brand', `Delete "${brand.name}"? Machines must be removed first.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteBrand(brand.id);
-            if (selectedBrandId === brand.id) {
-              setSelectedBrandId(null);
-              setMachines([]);
-            }
-            loadBrands();
-          } catch (error) {
-            Alert.alert('Error', error instanceof Error ? error.message : 'Cannot delete brand.');
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleDeleteMachine = (machine: Machine) => {
-    Alert.alert('Delete Machine', `Delete "${machine.machine_name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteMachine(machine.id);
-            if (selectedBrandId) loadMachines(selectedBrandId);
-          } catch (error) {
-            Alert.alert('Error', error instanceof Error ? error.message : 'Cannot delete machine.');
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleSaveBrandEdit = async () => {
-    if (!editingBrand || !editBrandName.trim()) return;
-    try {
-      await updateBrand(editingBrand.id, editBrandName);
-      setEditingBrand(null);
-      loadBrands();
-    } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update brand.');
-    }
-  };
+  const navigation = useNavigation<Nav>();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Settings</Text>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Brands</Text>
-        {brands.map((brand) => (
+      <View style={styles.content}>
+        {MENU_ITEMS.map((item) => (
           <Pressable
-            key={brand.id}
-            style={[styles.row, selectedBrandId === brand.id && styles.rowSelected]}
-            onPress={() => setSelectedBrandId(brand.id)}
+            key={item.key}
+            style={styles.row}
+            onPress={() => navigation.navigate(item.key)}
           >
-            <Text style={styles.rowText}>{brand.name}</Text>
-            <View style={styles.rowActions}>
-              <Pressable
-                onPress={() => {
-                  setEditingBrand(brand);
-                  setEditBrandName(brand.name);
-                }}
-                hitSlop={8}
-              >
-                <Ionicons name="pencil" size={18} color={colors.textSecondary} />
-              </Pressable>
-              <Pressable onPress={() => handleDeleteBrand(brand)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
-              </Pressable>
+            <View style={styles.iconWrap}>
+              <Ionicons name={item.icon} size={22} color={colors.primary} />
             </View>
+            <View style={styles.rowTextWrap}>
+              <Text style={styles.rowTitle}>{item.title}</Text>
+              <Text style={styles.rowSubtitle}>{item.subtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </Pressable>
         ))}
-        <Button title="Add Brand" variant="secondary" onPress={() => setShowAddBrand(true)} />
-
-        {selectedBrandId ? (
-          <>
-            <Text style={[styles.sectionTitle, styles.machinesTitle]}>Machines</Text>
-            {machines.map((machine) => (
-              <View key={machine.id} style={styles.machineRow}>
-                <MachineImage imageFilename={machine.image_filename} />
-                <View style={styles.machineInfo}>
-                  <Text style={styles.rowText}>{machine.machine_name}</Text>
-                  {machine.is_multipurpose ? (
-                    <Text style={styles.multipurpose}>Multipurpose</Text>
-                  ) : null}
-                </View>
-                <View style={styles.rowActions}>
-                  <Pressable
-                    onPress={() => {
-                      setEditingMachine(machine);
-                      setShowAddMachine(true);
-                    }}
-                    hitSlop={8}
-                  >
-                    <Ionicons name="pencil" size={18} color={colors.textSecondary} />
-                  </Pressable>
-                  <Pressable onPress={() => handleDeleteMachine(machine)} hitSlop={8}>
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-            <Button
-              title="Add Machine"
-              variant="secondary"
-              onPress={() => {
-                setEditingMachine(null);
-                setShowAddMachine(true);
-              }}
-            />
-          </>
-        ) : (
-          <Text style={styles.hint}>Select a brand to manage its machines.</Text>
-        )}
-      </ScrollView>
-
-      <AddBrandModal
-        visible={showAddBrand}
-        onClose={() => setShowAddBrand(false)}
-        onCreated={() => loadBrands()}
-      />
-
-      {selectedBrandId ? (
-        <AddMachineModal
-          visible={showAddMachine}
-          brandId={selectedBrandId}
-          machine={editingMachine}
-          onClose={() => {
-            setShowAddMachine(false);
-            setEditingMachine(null);
-          }}
-          onSaved={() => loadMachines(selectedBrandId)}
-        />
-      ) : null}
-
-      <AppModal
-        visible={editingBrand !== null}
-        title="Edit Brand"
-        onClose={() => setEditingBrand(null)}
-      >
-        <AppTextInput label="Brand name" value={editBrandName} onChangeText={setEditBrandName} />
-        <Button title="Save" onPress={handleSaveBrandEdit} />
-      </AppModal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -220,23 +68,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   content: {
-    padding: spacing.lg,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-  },
-  machinesTitle: {
-    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
     padding: spacing.md,
     backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
@@ -244,41 +84,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing.sm,
   },
-  rowSelected: {
-    borderColor: colors.primary,
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#1B2A22',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  rowText: {
+  rowTextWrap: {
+    flex: 1,
+  },
+  rowTitle: {
     color: colors.text,
     fontSize: 16,
-    flex: 1,
+    fontWeight: '600',
   },
-  rowActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'center',
-  },
-  machineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
-  },
-  machineInfo: {
-    flex: 1,
-  },
-  multipurpose: {
-    color: colors.textMuted,
-    fontSize: 12,
+  rowSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
     marginTop: 2,
-  },
-  hint: {
-    color: colors.textMuted,
-    marginTop: spacing.lg,
-    textAlign: 'center',
   },
 });

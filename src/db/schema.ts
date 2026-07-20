@@ -84,10 +84,31 @@ CREATE TABLE IF NOT EXISTS exercise_sets (
         CHECK (weight_value >= 0),
     weight_unit TEXT NOT NULL
         CHECK (weight_unit IN ('kg', 'lbs')),
+    estimated_1rm REAL
+        CHECK (estimated_1rm IS NULL OR estimated_1rm >= 0),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (workout_entry_id) REFERENCES workout_entries(id)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
     UNIQUE(workout_entry_id, set_number)
+);
+
+CREATE TABLE IF NOT EXISTS user_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    birth_date TEXT,
+    sex TEXT
+        CHECK (sex IS NULL OR sex IN ('male', 'female')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS body_weight_logs (
+    id INTEGER PRIMARY KEY,
+    weight_value REAL NOT NULL
+        CHECK (weight_value > 0),
+    weight_unit TEXT NOT NULL
+        CHECK (weight_unit IN ('kg', 'lbs')),
+    recorded_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `;

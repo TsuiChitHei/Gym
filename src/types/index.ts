@@ -1,4 +1,5 @@
 export type WeightUnit = 'kg' | 'lbs';
+export type Sex = 'male' | 'female';
 
 export interface Brand {
   id: number;
@@ -58,6 +59,7 @@ export interface ExerciseSet {
   reps: number;
   weight_value: number;
   weight_unit: WeightUnit;
+  estimated_1rm: number | null;
   created_at: string;
 }
 
@@ -78,6 +80,7 @@ export interface ExerciseDraft {
 }
 
 export interface WorkoutDraft {
+  id?: number;
   workoutName: string;
   location: string;
   startedAt: Date;
@@ -93,6 +96,8 @@ export interface WorkoutListItem extends Workout {
 
 export interface WorkoutDetailEntry {
   entry_order: number;
+  machine_id: number;
+  machine_mode_id: number | null;
   machine_name: string;
   brand_name: string;
   mode_name: string | null;
@@ -104,9 +109,64 @@ export interface WorkoutDetail extends Workout {
   entries: WorkoutDetailEntry[];
 }
 
+export interface ExerciseHistoryRecord {
+  workout_id: number;
+  workout_name: string;
+  started_at: string;
+  location_name: string | null;
+  entry_order: number;
+  machine_id: number;
+  machine_mode_id: number | null;
+  machine_name: string;
+  brand_name: string;
+  mode_name: string | null;
+  sets: ExerciseSet[];
+}
+
+export interface UserProfile {
+  id: number;
+  birth_date: string | null;
+  sex: Sex | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BodyWeightLog {
+  id: number;
+  weight_value: number;
+  weight_unit: WeightUnit;
+  recorded_at: string;
+  created_at: string;
+}
+
+export interface DailyOneRepMaxPoint {
+  date: string;
+  estimated_1rm_kg: number;
+  reps: number;
+  weight_value: number;
+  weight_unit: WeightUnit;
+  machine_id: number;
+  machine_name: string;
+  brand_name: string;
+  machine_mode_id: number | null;
+  mode_name: string | null;
+}
+
+export interface AnalyticsExerciseOption {
+  /** Stable key: `${machineId}:${modeId ?? 'none'}` */
+  key: string;
+  machine_id: number;
+  machine_mode_id: number | null;
+  machine_name: string;
+  brand_name: string;
+  mode_name: string | null;
+  label: string;
+}
+
 export type WorkoutFlowStep =
   | 'idle'
   | 'session-setup'
   | 'manual-session-setup'
+  | 'exercise-recap'
   | 'exercise-select'
   | 'set-logging';

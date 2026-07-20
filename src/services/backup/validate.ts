@@ -47,26 +47,35 @@ export function validateBackupWorkbook(workbook: XLSX.WorkBook): BackupMeta {
   const backupFormatVersion = Number(metaRow.backup_format_version);
   const schemaVersion = Number(metaRow.schema_version);
 
-  if (backupFormatVersion !== BACKUP_FORMAT_VERSION) {
+  if (![1, 2].includes(backupFormatVersion)) {
     throw new Error(
-      `Unsupported backup format version: ${backupFormatVersion}. Expected ${BACKUP_FORMAT_VERSION}.`,
+      `Unsupported backup format version: ${backupFormatVersion}. Supported: 1, 2.`,
     );
   }
 
-  if (schemaVersion !== SCHEMA_VERSION) {
-    throw new Error(
-      `Unsupported schema version: ${schemaVersion}. Expected ${SCHEMA_VERSION}.`,
-    );
+  if (![1, 2].includes(schemaVersion)) {
+    throw new Error(`Unsupported schema version: ${schemaVersion}. Supported: 1, 2.`);
   }
 
-  for (const sheetName of TABLE_SHEETS) {
+  const requiredSheets =
+    schemaVersion >= 2
+      ? TABLE_SHEETS
+      : (TABLE_SHEETS.filter(
+          (name) => name !== 'user_profile' && name !== 'body_weight_logs',
+        ) as TableSheetName[]);
+
+  for (const sheetName of requiredSheets) {
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) {
       throw new Error(`Backup is missing required sheet: ${sheetName}`);
     }
 
     const headers = getSheetHeaders(sheet);
-    const columns = TABLE_COLUMNS[sheetName];
+    const columns =
+      sheetName === 'exercise_sets' && schemaVersion < 2
+        ? TABLE_COLUMNS.exercise_sets.filter((col) => col !== 'estimated_1rm')
+        : TABLE_COLUMNS[sheetName];
+
     for (const column of columns) {
       if (!headers.includes(column)) {
         throw new Error(`Sheet "${sheetName}" is missing column: ${column}`);

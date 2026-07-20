@@ -12,6 +12,7 @@ import {
   validateBackupWorkbook,
   XLSX,
 } from './validate';
+import { estimateOneRepMax } from '../../utils/oneRepMax';
 
 export async function importBackup(): Promise<void> {
   const picked = await DocumentPicker.getDocumentAsync({
@@ -48,6 +49,9 @@ export async function importBackup(): Promise<void> {
   const workbookArrayBuffer = await workbookFile.async('arraybuffer');
   const workbook = XLSX.read(workbookArrayBuffer, { type: 'array' });
   validateBackupWorkbook(workbook);
+
+  // After restore, backfill missing 1RM values if importing an older backup.
+  // (Handled by migrateSchema on next app start / getDatabase call as well.)
 
   const machines = parseTableRows<{
     id: number;
@@ -95,9 +99,11 @@ export async function importBackup(): Promise<void> {
   await db.execAsync('BEGIN IMMEDIATE');
   try {
     for (const table of TABLE_SHEETS) {
+      if (!workbook.Sheets[table]) continue;
       const rows = parseTableRows<Record<string, unknown>>(workbook, table);
       for (const row of rows) {
-        const columns = Object.keys(row);
+        const columns = Object.keys(row).filter((col) => row[col] !== undefined);
+        if (columns.length === 0) continue;
         const placeholders = columns.map(() => '?').join(', ');
         const values = columns.map((col) => row[col]);
         await db.runAsync(
@@ -105,6 +111,22 @@ export async function importBackup(): Promise<void> {
           values as (string | number | null)[],
         );
       }
+    }
+
+    // Backfill estimated 1RM for older backups that lack the column/values.
+    const setsNeeding1rm = await db.getAllAsync<{
+      id: number;
+      reps: number;
+      weight_value: number;
+    }>(
+      `SELECT id, reps, weight_value FROM exercise_sets
+       WHERE estimated_1rm IS NULL AND reps > 0`,
+    );
+    for (const set of setsNeeding1rm) {
+      await db.runAsync('UPDATE exercise_sets SET estimated_1rm = ? WHERE id = ?', [
+        estimateOneRepMax(set.weight_value, set.reps),
+        set.id,
+      ]);
     }
 
     for (const machine of machines) {

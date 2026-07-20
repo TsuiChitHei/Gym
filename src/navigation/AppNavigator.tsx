@@ -6,7 +6,7 @@ import { colors } from '../constants/theme';
 import { AnalyticsScreen } from '../screens/analytics/AnalyticsScreen';
 import { HistoryScreen } from '../screens/history/HistoryScreen';
 import { LogScreen } from '../screens/log/LogScreen';
-import { SettingsScreen } from '../screens/settings/SettingsScreen';
+import { SettingsNavigator } from './SettingsNavigator';
 
 export type RootTabParamList = {
   Log: undefined;
@@ -58,7 +58,7 @@ export function AppNavigator() {
         <Tab.Screen name="Log" component={LogScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
         <Tab.Screen name="Analytics" component={AnalyticsScreen} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
+        <Tab.Screen name="Settings" component={SettingsNavigator} />
       </Tab.Navigator>
     </NavigationContainer>
   );
